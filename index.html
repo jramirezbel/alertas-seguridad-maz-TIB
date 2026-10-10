@@ -71,6 +71,15 @@
   .vacio h1 { font-size: 2rem; margin-bottom: 8px; color: var(--ink); }
 
   /* Repositorio de alertas */
+
+    .mes + .mes { margin-top: 40px; }
+  .mes-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    border-bottom: 3px solid var(--ink); padding-bottom: 6px; margin-bottom: 16px;
+  }
+  .mes-head h2 { font-size: 1.6rem; }
+  .mes-head span { color: var(--ink-2); font-size: .92rem; font-variant-numeric: tabular-nums; }
+  
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
   .card {
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
@@ -356,9 +365,34 @@ async function verInicio(mio) {
       <h1>Alertas de seguridad de la zona</h1>
       <p>Abre cada alerta, léela y registra con tu SHARP que la viste. El avance de tu equipo se actualiza al momento.</p>
     </div>
-    <div class="grid">${alertas.map((a, i) => card(a, i === 0)).join('')}</div>`;
+      ${seccionesPorMes(alertas)}`;
 }
 
+/* Agrupa las alertas por mes de ocurrencia (la más reciente arriba) */
+function seccionesPorMes(alertas) {
+  const grupos = [];
+  alertas.forEach(a => {
+    const clave = String(a.fecha).slice(0, 7);
+    let g = grupos.find(x => x.clave === clave);
+    if (!g) { g = { clave, items: [] }; grupos.push(g); }
+    g.items.push(a);
+  });
+  let primera = true;
+  return grupos.map(g => {
+    const [y, m] = g.clave.split('-').map(Number);
+    const mes = new Date(y, m - 1, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+    const titulo = mes.charAt(0).toLocaleUpperCase('es') + mes.slice(1);
+    const n = g.items.length;
+    const cards = g.items.map(a => { const c = card(a, primera); primera = false; return c; }).join('');
+    return `<section class="mes" aria-labelledby="mes-${g.clave}">
+      <header class="mes-head">
+        <h2 id="mes-${g.clave}">${titulo}</h2>
+        <span>${n} ${n === 1 ? 'alerta' : 'alertas'}</span>
+      </header>
+      <div class="grid">${cards}</div>
+    </section>`;
+  }).join('');
+}
 function card(a, destacada) {
   const p = pct(a.visualizaron, a.total);
   return `<a class="card${destacada ? ' destacada' : ''}" href="#/alerta/${a.id}">
