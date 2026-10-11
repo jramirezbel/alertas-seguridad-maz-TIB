@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alertas de Seguridad | Maltería Tibitó</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚠️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink: #1C2428;
+    --ink-2: #46535A;
+    --muted: #66737A;
+    --paper: #EDF0EF;
+    --surface: #FFFFFF;
+    --line: #D3DAD9;
+    --line-soft: #E8ECEB;
+    --signal: #F5C400;
+    --safe: #1E8449;
+    --safe-soft: #E2F1E8;
+    --danger: #8A1C12;
+    --r-sm: 4px;
+    --r-md: 8px;
+    --font: 'Barlow', 'Segoe UI', Roboto, Arial, sans-serif;
+    --font-cond: 'Barlow Condensed', 'Arial Narrow', 'Segoe UI', sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-text-size-adjust: 100%;
+  }
+  img { max-width: 100%; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid #1D5FD1; outline-offset: 2px; }
+
+  /* Encabezado tipo señal */
+  .top { background: var(--ink); color: #fff; border-bottom: 6px solid var(--signal); }
+  .top-in {
+    max-width: 1180px; margin: 0 auto; padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap;
+  }
+  .marca { text-decoration: none; color: #fff; }
+  .marca strong {
+    display: block; font-family: var(--font-cond); font-weight: 700;
+    font-size: 1.55rem; line-height: 1.05; letter-spacing: .01em;
+  }
+  .marca span { display: block; font-size: .88rem; color: #B7C1C4; }
+  nav { display: flex; gap: 6px; }
+  nav a {
+    color: #DCE2E3; text-decoration: none; font-weight: 600;
+    padding: 8px 14px; border-radius: var(--r-sm);
+  }
+  nav a:hover { color: #fff; }
+  nav a[aria-current="page"] { background: var(--signal); color: var(--ink); }
+
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 72px; }
+  h1, h2, h3 { font-family: var(--font-cond); font-weight: 700; line-height: 1.1; margin: 0; }
+  .intro { max-width: 62ch; margin-bottom: 24px; }
+  .intro h1 { font-size: clamp(2rem, 4.5vw, 2.8rem); margin-bottom: 6px; }
+  .intro p { margin: 0; color: var(--ink-2); }
+  .cargando, .vacio { padding: 48px 0; color: var(--ink-2); }
+  .vacio h1 { font-size: 2rem; margin-bottom: 8px; color: var(--ink); }
+
+  /* Repositorio de alertas */
+
+    .mes + .mes { margin-top: 40px; }
+  .mes-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    border-bottom: 3px solid var(--ink); padding-bottom: 6px; margin-bottom: 16px;
+  }
+  .mes-head h2 { font-size: 1.6rem; }
+  .mes-head span { color: var(--ink-2); font-size: .92rem; font-variant-numeric: tabular-nums; }
+  
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+    overflow: hidden; text-decoration: none; display: flex; flex-direction: column;
+  }
+  .card:hover { border-color: var(--ink-2); }
+  .card img {
+    width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top;
+    display: block; background: var(--line-soft); border-bottom: 1px solid var(--line);
+  }
+  .card-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .card h2 { font-size: 1.35rem; }
+  .card .desc { margin: 0; color: var(--ink-2); font-size: .95rem; }
+  .fecha { margin: 0; color: var(--muted); font-size: .9rem; }
+  .etiqueta {
+    align-self: flex-start; background: var(--signal); color: var(--ink);
+    font-weight: 700; font-size: .8rem; padding: 2px 8px; border-radius: var(--r-sm);
+  }
+  .meta { margin-top: auto; padding-top: 10px; font-size: .9rem; color: var(--ink-2); }
+  .meta-fila { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+  @media (min-width: 760px) {
+    .card.destacada { grid-column: 1 / -1; flex-direction: row; }
+    .card.destacada img { flex: 0 0 44%; width: 44%; aspect-ratio: 4 / 3; border-bottom: 0; border-right: 1px solid var(--line); }
+    .card.destacada .card-body { padding: 24px 28px; gap: 8px; }
+    .card.destacada h2 { font-size: 2rem; }
+    .card.destacada .desc { font-size: 1.05rem; max-width: 52ch; }
+  }
+
+  .barra { height: 8px; background: #DDE3E2; border-radius: 99px; overflow: hidden; }
+  .barra > span { display: block; height: 100%; background: var(--ink); border-radius: 99px; }
+  .barra.completa > span { background: var(--safe); }
+
+  /* Detalle de alerta */
+  .volver { display: inline-block; margin-bottom: 18px; color: var(--ink-2); font-weight: 600; }
+  .detalle { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 36px; align-items: start; }
+  .onepager { margin: 0; position: sticky; top: 16px; }
+  .onepager img { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: var(--r-md); background: #fff; }
+  .onepager figcaption { font-size: .85rem; color: var(--muted); margin: 8px 0 12px; }
+  @media (max-width: 860px) {
+    .detalle { grid-template-columns: 1fr; gap: 20px; }
+    .onepager { position: static; }
+  }
+  .alerta-head h1 { font-size: clamp(1.9rem, 3.6vw, 2.5rem); margin: 2px 0 8px; }
+  .alerta-head p { margin: 0; color: var(--ink-2); }
+
+  /* Registro: el panel amarillo */
+  .checkin {
+    background: var(--signal); color: var(--ink);
+    border: 2px solid var(--ink); border-radius: var(--r-md);
+    padding: 20px; margin: 22px 0 8px;
+  }
+  .checkin h2 { font-size: 1.5rem; margin-bottom: 12px; }
+  .checkin p { margin: 0 0 12px; }
+  .checkin .pregunta { font-size: 1.15rem; }
+  .checkin input {
+    font: inherit; font-size: 1.3rem; letter-spacing: .06em;
+    padding: 10px 12px; border: 2px solid var(--ink); border-radius: var(--r-sm);
+    background: #fff; flex: 1 1 180px; min-width: 0;
+  }
+  .checkin.hecho { background: var(--safe-soft); border-color: var(--safe); }
+  .checkin.hecho h2::before { content: "✓ "; color: var(--safe); }
+  label { display: block; font-weight: 600; margin: 0 0 6px; }
+  .fila { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    font: inherit; font-weight: 700; padding: 11px 18px;
+    border-radius: var(--r-sm); border: 2px solid var(--ink);
+    background: var(--ink); color: #fff; cursor: pointer; text-decoration: none; display: inline-block;
+  }
+  .btn:disabled { opacity: .55; cursor: progress; }
+  .btn-ghost { background: transparent; color: var(--ink); }
+  .btn-sec { background: var(--surface); color: var(--ink); }
+  .enlace { font: inherit; background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; cursor: pointer; font-weight: 600; }
+  .error { color: var(--danger); font-weight: 600; margin: 10px 0 0; }
+  .aviso { color: var(--ink-2); font-size: .92rem; margin: 6px 0 0; }
+
+  .bloque { border-top: 1px solid var(--line); padding-top: 22px; margin-top: 28px; }
+  .bloque > h2 { font-size: 1.45rem; margin-bottom: 6px; }
+  .bloque > p { margin: 0 0 16px; color: var(--ink-2); }
+  .bloque h3 { font-size: 1.15rem; margin: 20px 0 8px; }
+
+  .ea-fila { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-bottom: 14px; }
+  .ea-fila .barra { grid-column: 1 / -1; height: 10px; }
+  .ea-nombre { font-weight: 600; }
+  .ea-num { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+  details.ea { border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); margin-bottom: 8px; }
+  details.ea summary { padding: 10px 14px; cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; gap: 12px; }
+  details.ea summary span { color: var(--ink-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .personas { list-style: none; margin: 0; padding: 0 14px 8px; }
+  .personas li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line-soft); font-size: .95rem; }
+  .visto { color: var(--safe); font-weight: 600; white-space: nowrap; }
+  .pendiente { color: var(--muted); white-space: nowrap; }
+
+  /* Consolidado */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px 16px; }
+  .tile h2 { font-size: 1.2rem; margin-bottom: 8px; }
+  .tile p { margin: 8px 0 0; font-size: .92rem; color: var(--ink-2); }
+  .tile .grande { font-family: var(--font-cond); font-size: 2rem; font-weight: 700; color: var(--ink); margin: 0; line-height: 1; }
+  .tabla-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); }
+  table { border-collapse: collapse; min-width: 100%; font-size: .92rem; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line-soft); text-align: center; white-space: nowrap; }
+  th { font-weight: 600; background: var(--surface); }
+  th a { text-decoration: none; border-bottom: 1px dotted var(--ink-2); }
+  th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); z-index: 1; }
+  tr.grupo td { background: #F4F6F5; font-weight: 700; }
+  tr.grupo td:first-child { background: #F4F6F5; }
+  .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #B3BEC0; vertical-align: middle; }
+  .dot.si { background: var(--safe); border-color: var(--safe); }
+  tr.grupo td.num-eq { font-weight: 600; color: var(--ink-2); }
+  .leyenda { color: var(--ink-2); font-size: .9rem; margin: 12px 0 0; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .pie { max-width: 1180px; margin: 0 auto; padding: 0 20px 32px; color: var(--muted); font-size: .85rem; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 20px);
+    background: var(--ink); color: #fff; padding: 12px 18px; border-radius: var(--r-sm);
+    font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 10;
+  }
+  .toast.visible { opacity: 1; transform: translate(-50%, 0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <a class="marca" href="#/">
+      <strong>Alertas de Seguridad</strong>
+      <span>Maltería Tibitó, Zona MAZ</span>
+    </a>
+    <nav aria-label="Secciones">
+      <a href="#/" data-ruta="inicio">Alertas</a>
+      <a href="#/consolidado" data-ruta="consolidado">Consolidado</a>
+    </nav>
+  </div>
+</header>
+
+<main id="app" tabindex="-1"></main>
+<footer class="pie">Equipos: Malteros de Clase Mundial, Primera Línea Maltera, Teamwork, Unidad Maltera y Gerencia de Producción.</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN: pega aquí los datos de tu proyecto
+   Supabase > Project Settings > API
+   ===================================================================== */
+const CONFIG = {
+  SUPABASE_URL: 'https://abzxbxjhjqzzfjvuitom.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_hhKa3cUXqc6w2-3NmoKQ9g_ixC3S7u6'
+};
+
+/* Equipos (el id debe coincidir exactamente con la base de datos) */
+const EQUIPOS = [
+  { id: 'MALTEROS DE CLASE MUNDIAL', nombre: 'Malteros de Clase Mundial' },
+  { id: 'PRIMERA LINEA MALTERA',     nombre: 'Primera Línea Maltera' },
+  { id: 'TEAMWORK',                  nombre: 'Teamwork' },
+  { id: 'UNIDAD MALTERA',            nombre: 'Unidad Maltera' },
+  { id: 'GERENCIA DE PRODUCCION',    nombre: 'Gerencia de Producción' }
+];
+
+/* ===================================================================== */
+
+const $app = document.getElementById('app');
+const configurado = !CONFIG.SUPABASE_URL.startsWith('PEGA') && !CONFIG.SUPABASE_ANON_KEY.startsWith('PEGA');
+let sb = null;
+if (configurado && window.supabase) {
+  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+}
+
+async function rpc(fn, params = {}) {
+  const { data, error } = await sb.rpc(fn, params);
+  if (error) throw error;
+  return data;
+}
+
+/* ---------- Utilidades ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nombreEA = id => (EQUIPOS.find(e => e.id === id) || { nombre: id }).nombre;
+const nombreBonito = s => String(s || '').toLocaleLowerCase('es').replace(/(^|\s)(\p{L})/gu, (m, a, b) => a + b.toLocaleUpperCase('es'));
+const pct = (a, b) => b ? Math.round((a / b) * 100) : 0;
+
+function fechaLocal(s) {
+  const [y, m, d] = String(s).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+const fmtFecha = s => fechaLocal(s).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+const fmtFechaCorta = s => fechaLocal(s).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+const fmtHora = ts => new Date(ts).toLocaleString('es-CO', {
+  timeZone: 'America/Bogota', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit'
+});
+
+const LS_KEY = 'seg_sharp';
+function leerSharp() { try { return localStorage.getItem(LS_KEY) || ''; } catch (e) { return ''; } }
+function guardarSharp(v) { try { v ? localStorage.setItem(LS_KEY, v) : localStorage.removeItem(LS_KEY); } catch (e) {} }
+
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('visible'), 2800);
+}
+
+const ERROR_RED = 'No pudimos conectar con la base de datos. Revisa tu conexión e intenta de nuevo.';
+
+function cargando() { $app.innerHTML = '<p class="cargando">Cargando…</p>'; }
+
+function mostrarError(e) {
+  console.error(e);
+  $app.innerHTML = `<div class="vacio"><h1>No se pudo cargar la información</h1>
+    <p>${ERROR_RED}</p><p><button class="btn" onclick="route()">Intentar de nuevo</button></p></div>`;
+}
+
+/* ---------- Navegación ---------- */
+function marcarNav(ruta) {
+  document.querySelectorAll('nav a').forEach(a => {
+    if (a.dataset.ruta === ruta) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+}
+
+let token = 0;
+async function route() {
+  const mio = ++token;
+  if (!configurado || !sb) {
+    $app.innerHTML = `<div class="vacio"><h1>Falta conectar la base de datos</h1>
+      <p>Abre <strong>index.html</strong> y pega la Project URL y la anon key de Supabase en el bloque CONFIGURACIÓN.</p></div>`;
+    return;
+  }
+  const h = location.hash || '#/';
+  try {
+    if (h.startsWith('#/alerta/')) {
+      marcarNav('inicio');
+      await verAlerta(Number(h.split('/')[2]), mio);
+    } else if (h === '#/consolidado') {
+      marcarNav('consolidado');
+      await verConsolidado(mio);
+    } else {
+      marcarNav('inicio');
+      await verInicio(mio);
+    }
+    window.scrollTo(0, 0);
+  } catch (e) {
+    if (mio === token) mostrarError(e);
+  }
+}
+window.addEventListener('hashchange', route);
+
+/* ---------- Vista: repositorio ---------- */
+async function verInicio(mio) {
+  cargando();
+  const alertas = await rpc('seg_resumen_alertas');
+  if (mio !== token) return;
+  if (!alertas.length) {
+    $app.innerHTML = `<div class="vacio"><h1>Aún no hay alertas publicadas</h1>
+      <p>Cuando se publique la primera alerta de la zona, aparecerá aquí.</p></div>`;
+    return;
+  }
+  $app.innerHTML = `
+    <div class="intro">
+      <h1>Alertas de seguridad de la zona</h1>
+      <p>Abre cada alerta, léela y registra con tu SHARP que la viste. El avance de tu equipo se actualiza al momento.</p>
+    </div>
+      ${seccionesPorMes(alertas)}`;
+}
+
+/* Agrupa las alertas por mes de ocurrencia (la más reciente arriba) */
+function seccionesPorMes(alertas) {
+  const grupos = [];
+  alertas.forEach(a => {
+    const clave = String(a.fecha).slice(0, 7);
+    let g = grupos.find(x => x.clave === clave);
+    if (!g) { g = { clave, items: [] }; grupos.push(g); }
+    g.items.push(a);
+  });
+  let primera = true;
+  return grupos.map(g => {
+    const [y, m] = g.clave.split('-').map(Number);
+    const mes = new Date(y, m - 1, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+    const titulo = mes.charAt(0).toLocaleUpperCase('es') + mes.slice(1);
+    const n = g.items.length;
+    const cards = g.items.map(a => { const c = card(a, primera); primera = false; return c; }).join('');
+    return `<section class="mes" aria-labelledby="mes-${g.clave}">
+      <header class="mes-head">
+        <h2 id="mes-${g.clave}">${titulo}</h2>
+        <span>${n} ${n === 1 ? 'alerta' : 'alertas'}</span>
+      </header>
+      <div class="grid">${cards}</div>
+    </section>`;
+  }).join('');
+}
+function card(a, destacada) {
+  const p = pct(a.visualizaron, a.total);
+  return `<a class="card${destacada ? ' destacada' : ''}" href="#/alerta/${a.id}">
+    <img src="${esc(a.imagen_url)}" alt="" loading="lazy">
+    <div class="card-body">
+      ${destacada ? '<span class="etiqueta">Más reciente</span>' : ''}
+      <p class="fecha">${fmtFecha(a.fecha)}</p>
+      <h2>${esc(a.titulo)}</h2>
+      ${a.descripcion_corta ? `<p class="desc">${esc(a.descripcion_corta)}</p>` : ''}
+      <div class="meta">
+        <div class="meta-fila"><span>${a.visualizaron} de ${a.total} la vieron</span><span class="num">${p}%</span></div>
+        <div class="barra${p >= 100 ? ' completa' : ''}"><span style="width:${p}%"></span></div>
+      </div>
+    </div>
+  </a>`;
+}
+
+/* ---------- Vista: detalle de alerta ---------- */
+let vista = null;
+
+async function verAlerta(id, mio) {
+  cargando();
+  const d = await rpc('seg_detalle_alerta', { p_alerta_id: id });
+  if (mio !== token) return;
+  if (!d || !d.alerta) {
+    $app.innerHTML = `<div class="vacio"><h1>No encontramos esta alerta</h1>
+      <p>Puede que se haya retirado. <a href="#/">Ver todas las alertas</a></p></div>`;
+    return;
+  }
+  const guardado = leerSharp();
+  vista = {
+    id, d,
+    reg: { paso: 'input', sharp: guardado, error: '' }
+  };
+  const a = d.alerta;
+  $app.innerHTML = `
+    <a class="volver" href="#/">Todas las alertas</a>
+    <div class="detalle">
+      <figure class="onepager">
+        <a href="${esc(a.imagen_url)}" target="_blank" rel="noopener">
+          <img src="${esc(a.imagen_url)}" alt="Onepager de la alerta: ${esc(a.titulo)}">
+        </a>
+        <figcaption>Toca la imagen para verla en tamaño completo.</figcaption>
+        ${a.pdf_url ? `<a class="btn btn-sec" href="${esc(a.pdf_url)}" target="_blank" rel="noopener">Ver investigación completa (PDF)</a>` : ''}
+      </figure>
+      <div>
+        <header class="alerta-head">
+          <p class="fecha">${fmtFecha(a.fecha)}</p>
+          <h1>${esc(a.titulo)}</h1>
+          ${a.descripcion_corta ? `<p>${esc(a.descripcion_corta)}</p>` : ''}
+        </header>
+        <section class="checkin" id="checkin" aria-live="polite"></section>
+        <section class="bloque" id="avance"></section>
+      </div>
+    </div>`;
+  renderCheckin();
+  renderAvance();
+  if (guardado) validarRegistro(guardado, true);
+}
+
+async function refrescar() {
+  try {
+    const d = await rpc('seg_detalle_alerta', { p_alerta_id: vista.id });
+    if (d && d.alerta) { vista.d = d; renderAvance(); }
+  } catch (e) { console.error(e); }
+}
+
+/* Registro de visualización */
+function renderCheckin() {
+  const r = vista.reg;
+  const el = document.getElementById('checkin');
+  if (!el) return;
+  el.classList.toggle('hecho', r.paso === 'hecho');
+  const err = r.error ? `<p class="error" role="alert">${esc(r.error)}</p>` : '';
+
+  if (r.paso === 'input') {
+    el.innerHTML = `
+      <h2>Registra que leíste esta alerta</h2>
+      <form id="f-reg" novalidate>
+        <label for="in-reg">Tu ID SHARP</label>
+        <div class="fila">
+          <input id="in-reg" inputmode="numeric" autocomplete="off" value="${esc(r.sharp)}" placeholder="Ej. 38600000">
+          <button class="btn" ${r.cargando ? 'disabled' : ''}>${r.cargando ? 'Verificando…' : 'Continuar'}</button>
+        </div>
+        ${err}
+      </form>`;
+    el.querySelector('#f-reg').addEventListener('submit', ev => {
+      ev.preventDefault();
+      const v = el.querySelector('#in-reg').value.trim();
+      if (!v) { r.error = 'Escribe tu ID SHARP.'; renderCheckin(); return; }
+      r.error = '';
+      validarRegistro(v);
+    });
+  } else if (r.paso === 'confirmar') {
+    el.innerHTML = `
+      <h2>Confirma tu registro</h2>
+      <p class="pregunta">¿Eres <strong>${esc(nombreBonito(r.persona.nombre))}</strong>, del equipo ${esc(nombreEA(r.persona.ea))}?</p>
+      <div class="fila">
+        <button class="btn" id="b-si" ${r.cargando ? 'disabled' : ''}>${r.cargando ? 'Registrando…' : 'Sí, leí la alerta'}</button>
+        <button class="btn btn-ghost" id="b-no" ${r.cargando ? 'disabled' : ''}>No soy yo</button>
+      </div>
+      ${err}`;
+    el.querySelector('#b-si').addEventListener('click', confirmarRegistro);
+    el.querySelector('#b-no').addEventListener('click', cambiarPersona);
+  } else {
+    el.innerHTML = `
+      <h2>${r.nuevo ? 'Listo, quedó registrado' : 'Ya registraste esta alerta'}</h2>
+      <p>${esc(nombreBonito(r.persona.nombre))}, ${esc(nombreEA(r.persona.ea))}. Registro del ${fmtHora(r.fecha)}.</p>
+      <button class="enlace" id="b-otro">Registrar a otra persona</button>`;
+    el.querySelector('#b-otro').addEventListener('click', cambiarPersona);
+  }
+}
+
+async function validarRegistro(sharp, auto = false) {
+  const r = vista.reg;
+  r.cargando = true; renderCheckin();
+  try {
+    const v = await rpc('seg_validar_sharp', { p_sharp: sharp });
+    r.cargando = false;
+    if (!v.ok) {
+      r.paso = 'input';
+      if (auto) { guardarSharp(''); r.sharp = ''; r.error = ''; }
+      else { r.sharp = sharp; r.error = v.mensaje; }
+      renderCheckin();
+      return;
+    }
+    r.sharp = sharp.trim();
+    r.persona = v;
+    r.error = '';
+    const yo = vista.d.operadores.find(o => o.nombre === v.nombre && o.ea === v.ea);
+    if (yo && yo.visto_en) { r.paso = 'hecho'; r.nuevo = false; r.fecha = yo.visto_en; }
+    else r.paso = 'confirmar';
+    renderCheckin();
+  } catch (e) {
+    console.error(e);
+    r.cargando = false; r.paso = 'input'; r.error = ERROR_RED;
+    renderCheckin();
+  }
+}
+
+async function confirmarRegistro() {
+  const r = vista.reg;
+  r.cargando = true; renderCheckin();
+  try {
+    const res = await rpc('seg_registrar_visualizacion', { p_alerta_id: vista.id, p_sharp: r.sharp });
+    r.cargando = false;
+    if (!res.ok) { r.paso = 'input'; r.error = res.mensaje; renderCheckin(); return; }
+    guardarSharp(r.sharp);
+    r.paso = 'hecho'; r.nuevo = res.nuevo; r.fecha = res.fecha;
+    renderCheckin();
+    if (res.nuevo) toast('Visualización registrada');
+    refrescar();
+  } catch (e) {
+    console.error(e);
+    r.cargando = false; r.error = ERROR_RED;
+    renderCheckin();
+  }
+}
+
+function cambiarPersona() {
+  guardarSharp('');
+  vista.reg = { paso: 'input', sharp: '', error: '' };
+  renderCheckin();
+  const i = document.getElementById('in-reg');
+  if (i) i.focus();
+}
+
+/* Avance por equipo y por persona */
+function renderAvance() {
+  const el = document.getElementById('avance');
+  if (!el) return;
+  const abiertos = [...el.querySelectorAll('details[open]')].map(x => x.dataset.ea);
+  const ops = vista.d.operadores;
+  const vistos = ops.filter(o => o.visto_en).length;
+
+  const barras = EQUIPOS.map(eq => {
+    const m = ops.filter(o => o.ea === eq.id);
+    const v = m.filter(o => o.visto_en).length;
+    const p = pct(v, m.length);
+    return `<div class="ea-fila">
+      <span class="ea-nombre">${eq.nombre}</span><span class="ea-num">${v}/${m.length}</span>
+      <div class="barra${p >= 100 && m.length ? ' completa' : ''}"><span style="width:${p}%"></span></div>
+    </div>`;
+  }).join('');
+
+  const listas = EQUIPOS.map(eq => {
+    const m = ops.filter(o => o.ea === eq.id)
+      .sort((a, b) => (a.visto_en ? 1 : 0) - (b.visto_en ? 1 : 0) || a.nombre.localeCompare(b.nombre, 'es'));
+    const v = m.filter(o => o.visto_en).length;
+    return `<details class="ea" data-ea="${esc(eq.id)}" ${abiertos.includes(eq.id) ? 'open' : ''}>
+      <summary>${eq.nombre} <span>${v}/${m.length}</span></summary>
+      <ul class="personas">${m.map(o => `<li>
+        <span>${esc(nombreBonito(o.nombre))}</span>
+        ${o.visto_en ? `<span class="visto">✓ ${fmtHora(o.visto_en)}</span>` : '<span class="pendiente">Pendiente</span>'}
+      </li>`).join('')}</ul>
+    </details>`;
+  }).join('');
+
+  el.innerHTML = `
+    <h2>Avance por equipo</h2>
+    <p>${vistos} de ${ops.length} personas han registrado esta alerta.</p>
+    ${barras}
+    <h3>Detalle por persona</h3>
+    ${listas}`;
+}
+
+/* ---------- Vista: consolidado ---------- */
+async function verConsolidado(mio) {
+  cargando();
+  const c = await rpc('seg_consolidado');
+  if (mio !== token) return;
+  const alertas = c.alertas || [], ops = c.operadores || [];
+  if (!alertas.length) {
+    $app.innerHTML = `<div class="vacio"><h1>Aún no hay datos</h1><p>El consolidado aparece cuando se publique la primera alerta.</p></div>`;
+    return;
+  }
+  const n = alertas.length;
+
+  const tiles = EQUIPOS.map(eq => {
+    const m = ops.filter(o => o.ea === eq.id);
+    const vistas = m.reduce((s, o) => s + o.vistas.length, 0);
+    const cob = pct(vistas, m.length * n);
+    return `<div class="tile">
+      <h2>${eq.nombre}</h2>
+      <p class="grande num">${cob}%</p>
+      <div class="barra${cob >= 100 ? ' completa' : ''}" style="margin-top:8px"><span style="width:${cob}%"></span></div>
+      <p>Cobertura de lectura en ${n} ${n === 1 ? 'alerta' : 'alertas'}, ${m.length} ${m.length === 1 ? 'persona' : 'personas'}.</p>
+    </div>`;
+  }).join('');
+
+  const cabecera = `<tr><th scope="col">Persona</th>${alertas.map(a =>
+    `<th scope="col"><a href="#/alerta/${a.id}" title="${esc(a.titulo)}">${fmtFechaCorta(a.fecha)}</a></th>`).join('')}<th scope="col">Total</th></tr>`;
+
+  const filas = EQUIPOS.map(eq => {
+    const m = ops.filter(o => o.ea === eq.id);
+    const vistas = m.reduce((s, o) => s + o.vistas.length, 0);
+    const grupo = `<tr class="grupo"><td>${eq.nombre}</td>${alertas.map(a =>
+      `<td class="num num-eq">${m.filter(o => o.vistas.includes(a.id)).length}/${m.length}</td>`).join('')}
+      <td class="num">${pct(vistas, m.length * n)}%</td></tr>`;
+    const personas = m.map(o => {
+      const v = alertas.filter(a => o.vistas.includes(a.id)).length;
+      return `<tr><td>${esc(nombreBonito(o.nombre))}</td>${alertas.map(a => {
+        const si = o.vistas.includes(a.id);
+        return `<td><span class="dot${si ? ' si' : ''}" role="img" aria-label="${si ? 'Vista' : 'Pendiente'}"></span></td>`;
+      }).join('')}<td class="num">${v}/${n}</td></tr>`;
+    }).join('');
+    return grupo + personas;
+  }).join('');
+
+  $app.innerHTML = `
+    <div class="intro">
+      <h1>Consolidado</h1>
+      <p>Cobertura de lectura por equipo y por persona en todas las alertas publicadas.</p>
+    </div>
+    <div class="tiles">${tiles}</div>
+    <div class="tabla-wrap"><table>
+      <thead>${cabecera}</thead>
+      <tbody>${filas}</tbody>
+    </table></div>
+    <p class="leyenda">Punto verde: la persona registró la alerta. Punto vacío: pendiente. Toca una fecha para abrir esa alerta.</p>`;
+}
+
+route();
+</script>
+</body>
+</html>
